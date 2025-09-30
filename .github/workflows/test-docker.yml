@@ -31,27 +31,27 @@ jobs:
           ls -lah ${{ github.workspace }}
 
       - name: Run test script inside oneclient container
-          run: |
-            docker run --rm --privileged \
-              --entrypoint bash \
-              -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
-              -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
-              -v ${{ github.workspace }}:/workspace \
-              -w /workspace \
-              onedata/oneclient:21.02.1 -c "
-                set -ex
-                echo 'Starting oneclient...'
-                mkdir -p /mnt/onedata
-                oneclient /mnt/onedata &
-                sleep 10
-                echo 'Checking mount contents...'
-                ls -lah /mnt/onedata || true
-                echo 'Installing Python...'
-                apt-get update && apt-get install -y python3 python3-pip
-                pip3 install requests
-                echo 'Running test download...'
-                python3 bin/test-download.py
-                echo 'Listing test output...'
-                ls -lah /mnt/onedata/test-output || true
-                cat /mnt/onedata/test-output/test-summary.tsv || true
-              "
+        run: |
+          docker run --rm --privileged \
+            --entrypoint bash \
+            -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
+            -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            onedata/oneclient:21.02.1 -c "
+              set -ex
+              echo 'Starting oneclient...'
+              mkdir -p /mnt/onedata
+              oneclient /mnt/onedata &
+              sleep 10
+              echo 'Checking mount contents...'
+              ls -lah /mnt/onedata || true
+              echo 'Installing Python...'
+              apt-get update && apt-get install -y python3 python3-pip
+              pip3 install requests
+              echo 'Running test download...'
+              python3 bin/test-download.py
+              echo 'Listing test output...'
+              ls -lah /mnt/onedata/test-output || true
+              cat /mnt/onedata/test-output/test-summary.tsv || true
+            "
