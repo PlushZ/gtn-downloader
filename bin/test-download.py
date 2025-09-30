@@ -2,7 +2,7 @@ import os
 import requests
 
 def main():
-    output_dir = "/mnt/onedata/test-output"
+    output_dir = "/mnt/onedata/GTN data/test-output"
     os.makedirs(output_dir, exist_ok=True)
 
     summary_file = os.path.join(output_dir, "test-summary.tsv")
