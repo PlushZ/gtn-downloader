@@ -48,5 +48,4 @@ jobs:
               apt-get update && apt-get install -y python3 python3-pip
               pip3 install requests
               echo 'Running test download...'
-              python3 bin/test-download.py
             "

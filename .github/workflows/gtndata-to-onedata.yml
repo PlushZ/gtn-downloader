@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
   push:
     branches:
-    #  - main
+      - main
   schedule:
-    #- cron: 30 23 * * 6 # minute hour month-day month week-day
+    - cron: 30 23 * * 6 # minute hour month-day month week-day
 
 jobs:
   execute_script:
@@ -34,13 +34,12 @@ jobs:
             -w /workspace \
             onedata/oneclient:21.02.1 -c "
               set -e
-              echo 'Starting oneclient...'
+              mkdir -p /mnt/onedata
+              oneclient /mnt/onedata &
               oneclient /mnt/onedata &
               sleep 10
-              echo 'Installing Python + dependencies...'
               apt-get update && apt-get install -y python3 python3-pip
               pip3 install -r requirements.txt
-              echo 'Running GTN downloader...'
               python3 bin/data-library-download.py \
                 --input training-material \
                 --output '/mnt/onedata/GTN data'
