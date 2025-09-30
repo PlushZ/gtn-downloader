@@ -33,21 +33,23 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Create directory for mount
-        run: mkdir -p $HOME/remote_storage_mount
-
-      - name: Install Oneclient
+      - name: Run oneclient in Docker
         run: |
-          curl -sS http://get.onedata.org/oneclient.sh | bash
+          docker run -d --privileged \
+            -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
+            -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
+            -v $HOME/remote_storage_mount:/mnt/onedata:shared \
+            --name oneclient \
+            onedata/oneclient:21.02.1 \
+            /mnt/onedata
 
-      - name: Mount remote storage
-        run: |
-          oneclient $HOME/remote_storage_mount
+      - name: Wait for mount
+        run: sleep 10
 
       - name: Run python GTN-downloader script
         run: |
           python bin/data-library-download.py --input training-material --output $HOME/remote_storage_mount/GTN\ data
 
-      - name: Unmount remote storage
+      - name: Stop oneclient container
         run: |
-          fusermount -uz $HOME/remote_storage_mount
+          docker stop oneclient && docker rm oneclient
