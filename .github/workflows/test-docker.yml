@@ -49,6 +49,9 @@ jobs:
               echo 'Installing Python...'
               apt-get update && apt-get install -y python3 python3-pip
               pip3 install requests
+              echo 'Testing write to Onedata...'
+              echo 'hello world' > /mnt/onedata/debug-write.txt || echo 'Write failed'
+              ls -lah /mnt/onedata || true
               echo 'Running test download...'
               python3 bin/test-download.py
               echo 'Listing test output...'
