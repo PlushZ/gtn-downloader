@@ -1,4 +1,4 @@
-name: GTN downloader -test
+name: GTN downloader - test
 
 on:
   workflow_dispatch:
@@ -24,28 +24,33 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/galaxyproject/training-material.git
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - name: Install dependencies
+      - name: Debug info before Docker
         run: |
-          pip install -r requirements.txt
+          echo "Runner OS:" $(uname -a)
+          echo "Workspace:" ${{ github.workspace }}
+          ls -lah ${{ github.workspace }}
 
-      - name: Run oneclient in Docker
+      - name: Run test script inside oneclient container
         run: |
-          docker run -d --privileged \
+          docker run --rm --privileged \
+            --entrypoint bash \
             -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
             -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
-            -v $HOME/remote_storage_mount:/mnt/onedata:shared \
-            --name oneclient \
-            onedata/oneclient:21.02.1 \
-            /mnt/onedata
-
-      - name: Wait for mount
-        run: sleep 10
-
-      - name: Stop oneclient container
-        run: |
-          docker stop oneclient && docker rm oneclient
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            onedata/oneclient:21.02.1 -c "
+              set -ex
+              echo 'Starting oneclient...'
+              oneclient /mnt/onedata &
+              sleep 10
+              echo 'Checking mount contents...'
+              ls -lah /mnt/onedata || true
+              echo 'Installing Python...'
+              apt-get update && apt-get install -y python3 python3-pip
+              pip3 install requests
+              echo 'Running test download...'
+              python3 bin/test-download.py
+              echo 'Listing test output...'
+              ls -lah /mnt/onedata/test-output || true
+              cat /mnt/onedata/test-output/test-summary.tsv || true
+            "
