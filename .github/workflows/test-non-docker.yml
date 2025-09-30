@@ -1,0 +1,54 @@
+name: GTN downloader
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: 30 23 * * 6 # minute hour month-day month week-day
+
+jobs:
+  execute_script:
+    runs-on: ubuntu-latest
+
+    env:
+      ONECLIENT_ACCESS_TOKEN: ${{ secrets.ONECLIENT_ACCESS_TOKEN }}
+      ONECLIENT_PROVIDER_HOST: ${{ secrets.ONECLIENT_PROVIDER_HOST }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clone the training-material repo
+        run: |
+          git clone --depth 1 https://github.com/galaxyproject/training-material.git
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Create directory for mount
+        run: mkdir -p $HOME/remote_storage_mount
+
+      - name: Install Oneclient
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl gnupg lsb-release apt-transport-https ca-certificates
+          curl -sS https://get.onedata.org/onedata.gpg.key | sudo tee /etc/apt/trusted.gpg.d/onedata.gpg >/dev/null
+          echo "deb [arch=amd64] http://packages.onedata.org/apt/$(lsb_release -cs) stable main" | sudo tee /etc/apt/sources.list.d/onedata.list
+          sudo apt-get update
+          sudo apt-get install -y oneclient
+
+      - name: Mount remote storage
+        run: |
+          oneclient $HOME/remote_storage_mount
+
+      - name: Unmount remote storage
+        run: |
+          fusermount -uz $HOME/remote_storage_mount
