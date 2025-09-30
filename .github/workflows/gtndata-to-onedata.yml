@@ -35,21 +35,16 @@ jobs:
 
       - name: Run oneclient in Docker
         run: |
-          docker run -d --privileged \
+          docker run --rm --privileged \
             -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
             -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
-            -v $HOME/remote_storage_mount:/mnt/onedata:shared \
-            --name oneclient \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
             onedata/oneclient:21.02.1 \
-            /mnt/onedata
-
-      - name: Wait for mount
-        run: sleep 10
-
-      - name: Run python GTN-downloader script
-        run: |
-          python bin/data-library-download.py --input training-material --output $HOME/remote_storage_mount/GTN\ data
-
-      - name: Stop oneclient container
-        run: |
-          docker stop oneclient && docker rm oneclient
+            bash -c "
+              apt-get update && apt-get install -y python3-pip && \
+              pip install -r requirements.txt && \
+              python bin/data-library-download.py \
+                --input training-material \
+                --output /mnt/onedata/GTN\ data
+            "
