@@ -235,20 +235,13 @@ def main():
 
     write_summary_header(local_summary_file)
 
-    # 🔹 For testing: only run on single YAML file
-    yaml_path = os.path.join(
-        args.project_dir,
-        "topics/microbiome/tutorials/metaplasmidome_query/data-library.yaml"
-    )
-    print(f"➡️ Processing single YAML: {yaml_path}")
-    process_yaml(yaml_path, args.output_dir, local_summary_file)
-
-    # 🔹 Original loop (commented for now)
-    # for root, dirs, files in os.walk(args.project_dir):
-    #     for file in files:
-    #         if file == "data-library.yaml":
-    #             yaml_path = os.path.join(root, file)
-    #             process_yaml(yaml_path, args.output_dir, local_summary_file)
+    # Process ALL data-library.yaml files
+    for root, dirs, files in os.walk(args.project_dir):
+        for file in files:
+            if file == "data-library.yaml":
+                yaml_path = os.path.join(root, file)
+                print(f"➡️ Processing YAML: {yaml_path}")
+                process_yaml(yaml_path, args.output_dir, local_summary_file)
 
     calculate_overall_size(local_summary_file)
 
@@ -262,6 +255,7 @@ def main():
 
     end_time = time.time()
     print(f"Script run time: {end_time - start_time} seconds")
+
 
 
 if __name__ == "__main__":
