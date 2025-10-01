@@ -7,6 +7,60 @@ from urllib.parse import urlparse, unquote
 import time
 import ftplib
 import shutil
+from requests.exceptions import RequestException
+from urllib3.exceptions import IncompleteRead
+
+
+# NEW: helper function for safe HTTP downloads (download locally, then copy once)
+def safe_download_http(download_url, dest_path, retries=3, backoff=10):
+    tmp_local = os.path.join("/workspace/tmp", os.path.basename(dest_path))
+    os.makedirs(os.path.dirname(tmp_local), exist_ok=True)
+
+    for attempt in range(retries):
+        try:
+            with requests.get(download_url, stream=True, timeout=(10, 600)) as response:
+                response.raise_for_status()
+                with open(tmp_local, "wb") as f:
+                    # CHANGED: use smaller chunks (256 KB instead of 1 GB)
+                    for chunk in response.iter_content(chunk_size=256 * 1024):
+                        if chunk:
+                            f.write(chunk)
+
+            # Copy into Onedata only after full download succeeded
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            shutil.move(tmp_local, dest_path)
+            return "Downloaded", os.path.getsize(dest_path)
+
+        except (RequestException, IncompleteRead, IOError) as e:
+            print(f"⚠️ HTTP download failed (attempt {attempt+1}/{retries}): {e}")
+            if os.path.exists(tmp_local):
+                os.remove(tmp_local)
+            time.sleep(backoff * (attempt + 1))
+    return f"Error downloading file from {download_url}: {e}", 0
+
+
+# NEW: helper function for safe FTP downloads (download locally, then copy once)
+def safe_download_ftp(download_url, dest_path):
+    tmp_local = os.path.join("/workspace/tmp", os.path.basename(dest_path))
+    os.makedirs(os.path.dirname(tmp_local), exist_ok=True)
+
+    try:
+        ftp_host = download_url.split("://")[1].split("/")[0]
+        ftp = ftplib.FTP(ftp_host)
+        ftp.login()
+        ftp.cwd("/".join(download_url.split("/")[3:-1]))
+        with open(tmp_local, "wb") as file:
+            ftp.retrbinary("RETR " + download_url.split("/")[-1], file.write)
+        ftp.quit()
+
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+        shutil.move(tmp_local, dest_path)
+        return "Downloaded", os.path.getsize(dest_path)
+
+    except Exception as e:
+        if os.path.exists(tmp_local):
+            os.remove(tmp_local)
+        return f"Error downloading file from {download_url}: {e}", 0
 
 
 def process_yaml(yaml_path, output_dir, summary_file):
@@ -55,40 +109,16 @@ def process_urls(output_path, items, summary_file):
                 status = "Download skipped (File already exists)"
                 file_size = os.path.getsize(filename)
             else:
-                try:
-                    if download_url.startswith("ftp://"):
-                        ftp = ftplib.FTP(download_url.split("://")[1].split("/")[0])
-                        ftp.login()
-                        ftp.cwd("/".join(download_url.split("/")[3:-1]))
-                        with open(filename, "wb") as file:
-                            ftp.retrbinary(
-                                "RETR " + download_url.split("/")[-1], file.write
-                            )
-                        ftp.quit()
-                        status = "Downloaded"
-                        file_size = os.path.getsize(filename)
-                    else:
-                        with requests.get(download_url, stream=True) as response:
-                            response.raise_for_status()
-                            with open(filename, "wb") as file:
-                                for chunk in response.iter_content(
-                                    chunk_size=1024 * 1024 * 1024
-                                ):
-                                    if chunk:
-                                        file.write(chunk)
-                        status = "Downloaded"
-                        file_size = os.path.getsize(filename)
-                except Exception as e:
-                    if os.path.exists(filename):
-                        os.remove(filename)
-                    status = f"Error downloading file from {download_url}: {e}"
-                    file_size = 0
+                # CHANGED: now always download to local first, then move to Onedata
+                if download_url.startswith("ftp://"):
+                    status, file_size = safe_download_ftp(download_url, filename)
+                else:
+                    status, file_size = safe_download_http(download_url, filename)
 
             update_urls_file(output_path, url, status, file_size, summary_file)
 
 
 def update_urls_file(output_path, url, status, file_size, summary_file):
-
     with open(summary_file, "a") as summary:
         summary.write(f"{output_path}\t{url}\t{status}\t{file_size}\n")
 
@@ -135,11 +165,12 @@ def main():
         "--output",
         dest="output_dir",
         required=True,
-        help="path to the output directory where to " "download data and summary file",
+        help="path to the output directory where to download data and summary file",
     )
 
     args = parser.parse_args()
 
+    # CHANGED: summary written locally, then copied once at the end
     local_tmp_dir = os.path.join("/workspace", "tmp")
     os.makedirs(local_tmp_dir, exist_ok=True)
     local_summary_file = os.path.join(local_tmp_dir, "download-summary.tsv")
@@ -157,10 +188,10 @@ def main():
     summary_file = os.path.join(args.output_dir, "download-summary.tsv")
     try:
         shutil.copy(local_summary_file, summary_file)
-        print(f"Summary file created locally at: {local_summary_file}")
-        print(f"Summary file copied to Onedata at: {summary_file}")
+        print(f"✅ Summary file created locally at: {local_summary_file}")
+        print(f"✅ Summary file copied to Onedata at: {summary_file}")
     except Exception as e:
-        print(f"Failed to copy summary to Onedata: {e}")
+        print(f"⚠️ Failed to copy summary to Onedata: {e}")
 
     end_time = time.time()
     print(f"Script run time: {end_time - start_time} seconds")
