@@ -195,7 +195,8 @@ def main():
     # TESTING ONLY: microbiome/metaplasmidome_query
     yaml_path = os.path.join(
         args.project_dir,
-        "topics/microbiome/tutorials/metaplasmidome_query/data-library.yaml"
+        "topics/digital-humanities/tutorials/open-refine-tutorial/data-library.yaml"
+        #"topics/microbiome/tutorials/metaplasmidome_query/data-library.yaml"
     )
     process_yaml(yaml_path, args.output_dir, local_summary_file, failed_file)
 
