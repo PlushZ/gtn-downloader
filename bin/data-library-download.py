@@ -116,7 +116,7 @@ def process_urls(output_path, items, summary_file, failed_file):
             os.makedirs(output_path, exist_ok=True)
 
             # FIX: skip only if file exists and size > 0
-            if os.path.exists(filename) and os.path.getsize(filename) > 0:
+            if os.path.exists(filename): #and os.path.getsize(filename) > 0:
                 status = "Download skipped (File already exists)"
                 file_size = os.path.getsize(filename)
             else:
