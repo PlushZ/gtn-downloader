@@ -115,14 +115,13 @@ def process_urls(output_path, items, summary_file):
         if url:
             download_url = unquote(url)
 
-            # 🔹 Fix: clean up URL here before building filename
+            # Clean up any leading "wget "
             if download_url.startswith("wget "):
                 download_url = download_url.replace("wget ", "").strip()
-            if download_url.endswith("/content"):
-                download_url = download_url[:-8]
 
-            # 🔹 Now the filename will be correct
-            filename = os.path.join(output_path, os.path.basename(urlparse(download_url).path))
+            # Build filename WITHOUT trailing "/content"
+            file_url_for_name = download_url[:-8] if download_url.endswith("/content") else download_url
+            filename = os.path.join(output_path, os.path.basename(urlparse(file_url_for_name).path))
 
             os.makedirs(output_path, exist_ok=True)
 
@@ -136,7 +135,6 @@ def process_urls(output_path, items, summary_file):
                     status, file_size = safe_download_http(download_url, filename)
 
             update_urls_file(output_path, url, status, file_size, summary_file)
-
 
 
 def update_urls_file(output_path, url, status, file_size, summary_file):
