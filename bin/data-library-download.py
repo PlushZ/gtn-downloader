@@ -11,35 +11,34 @@ from requests.exceptions import RequestException
 from urllib3.exceptions import IncompleteRead
 
 
-# NEW: helper function for safe HTTP downloads (download locally, then copy once)
 def safe_download_http(download_url, dest_path, retries=3, backoff=10):
     tmp_local = os.path.join("/workspace/tmp", os.path.basename(dest_path))
     os.makedirs(os.path.dirname(tmp_local), exist_ok=True)
+    e = None 
 
     for attempt in range(retries):
         try:
             with requests.get(download_url, stream=True, timeout=(10, 600)) as response:
                 response.raise_for_status()
                 with open(tmp_local, "wb") as f:
-                    # CHANGED: use smaller chunks (256 KB instead of 1 GB)
                     for chunk in response.iter_content(chunk_size=256 * 1024):
                         if chunk:
                             f.write(chunk)
 
-            # Copy into Onedata only after full download succeeded
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
             shutil.move(tmp_local, dest_path)
             return "Downloaded", os.path.getsize(dest_path)
 
-        except (RequestException, IncompleteRead, IOError) as e:
-            print(f"⚠️ HTTP download failed (attempt {attempt+1}/{retries}): {e}")
+        except (RequestException, IncompleteRead, IOError) as err:
+            e = err  
+            print(f"⚠️ HTTP download failed (attempt {attempt+1}/{retries}): {err}")
             if os.path.exists(tmp_local):
                 os.remove(tmp_local)
             time.sleep(backoff * (attempt + 1))
+
     return f"Error downloading file from {download_url}: {e}", 0
 
 
-# NEW: helper function for safe FTP downloads (download locally, then copy once)
 def safe_download_ftp(download_url, dest_path):
     tmp_local = os.path.join("/workspace/tmp", os.path.basename(dest_path))
     os.makedirs(os.path.dirname(tmp_local), exist_ok=True)
