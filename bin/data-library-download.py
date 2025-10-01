@@ -114,11 +114,19 @@ def process_urls(output_path, items, summary_file):
         url = entry.get("url", "")
         if url:
             download_url = unquote(url)
+
+            # 🔹 Fix: clean up URL here before building filename
+            if download_url.startswith("wget "):
+                download_url = download_url.replace("wget ", "").strip()
+            if download_url.endswith("/content"):
+                download_url = download_url[:-8]
+
+            # 🔹 Now the filename will be correct
             filename = os.path.join(output_path, os.path.basename(urlparse(download_url).path))
 
             os.makedirs(output_path, exist_ok=True)
 
-            if os.path.exists(filename):
+            if os.path.exists(filename) and os.path.getsize(filename) > 0:
                 status = "Download skipped (File already exists)"
                 file_size = os.path.getsize(filename)
             else:
@@ -128,6 +136,7 @@ def process_urls(output_path, items, summary_file):
                     status, file_size = safe_download_http(download_url, filename)
 
             update_urls_file(output_path, url, status, file_size, summary_file)
+
 
 
 def update_urls_file(output_path, url, status, file_size, summary_file):
