@@ -20,10 +20,6 @@ def safe_download_http(download_url, dest_path, retries=3, backoff=10):
     if download_url.startswith("wget "):
         download_url = download_url.replace("wget ", "").strip()
 
-    # FIX: Strip trailing /content if present
-    if download_url.endswith("/content"):
-        download_url = download_url[:-8]
-
     for attempt in range(retries):
         try:
             print(f"➡️ Starting HTTP download: {download_url}")
