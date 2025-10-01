@@ -238,7 +238,7 @@ def main():
     # 🔹 For testing: only run on single YAML file
     yaml_path = os.path.join(
         args.project_dir,
-        "topics/digital-humanities/tutorials/text_mining_chinese/data-library.yaml"
+        "topics/microbiome/tutorials/metaplasmidome_query/data-library.yaml"
     )
     print(f"➡️ Processing single YAML: {yaml_path}")
     process_yaml(yaml_path, args.output_dir, local_summary_file)
