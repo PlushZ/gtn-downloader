@@ -108,20 +108,32 @@ def safe_download_ftp(download_url, dest_path, retries=3, backoff=10):
 
     return f"Error downloading file from {download_url}: {e}", 0
 
+def get_safe_filename_from_url(url, output_path):
+    """
+    Build a correct filename for saving locally, handling '/content' properly.
+    """
+    parsed = urlparse(url)
+    parts = parsed.path.split("/")
+
+    # If last part is 'content', use the one before it
+    if parts[-1] == "content" and len(parts) > 1:
+        filename = parts[-2]
+    else:
+        filename = parts[-1]
+
+    return os.path.join(output_path, filename)
 
 def process_urls(output_path, items, summary_file):
     for entry in items:
         url = entry.get("url", "")
         if url:
-            download_url = unquote(url)
+            download_url = unquote(url).strip()
 
-            # Clean up any leading "wget "
             if download_url.startswith("wget "):
                 download_url = download_url.replace("wget ", "").strip()
 
-            # Build filename WITHOUT trailing "/content"
-            file_url_for_name = download_url[:-8] if download_url.endswith("/content") else download_url
-            filename = os.path.join(output_path, os.path.basename(urlparse(file_url_for_name).path))
+            # Build safe filename (fixes the 'content' issue)
+            filename = get_safe_filename_from_url(download_url, output_path)
 
             os.makedirs(output_path, exist_ok=True)
 
@@ -135,6 +147,7 @@ def process_urls(output_path, items, summary_file):
                     status, file_size = safe_download_http(download_url, filename)
 
             update_urls_file(output_path, url, status, file_size, summary_file)
+
 
 
 def update_urls_file(output_path, url, status, file_size, summary_file):
