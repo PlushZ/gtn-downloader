@@ -11,8 +11,8 @@ from requests.exceptions import RequestException
 from http.client import IncompleteRead
 
 
-CACHE_BASE = "/workspace/cache"   # 🔹 Local cache for downloads
-TMP_BASE = "/workspace/tmp"       # 🔹 Temp dir for partial files
+CACHE_BASE = "/workspace/cache"  # 🔹 Local cache for downloads
+TMP_BASE = "/workspace/tmp"  # 🔹 Temp dir for partial files
 
 
 def safe_download_http(download_url, dest_path, retries=3, backoff=10):
@@ -43,12 +43,16 @@ def safe_download_http(download_url, dest_path, retries=3, backoff=10):
                             downloaded += len(chunk)
 
                             if downloaded - last_reported >= 100 * 1024 * 1024:
-                                print(f"📥 Downloaded {downloaded / (1024**2):.1f} MB...")
+                                print(
+                                    f"📥 Downloaded {downloaded / (1024**2):.1f} MB..."
+                                )
                                 last_reported = downloaded
 
                 os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                 shutil.move(tmp_local, dest_path)
-                print(f"✅ Finished download: {dest_path} ({downloaded / (1024**2):.1f} MB)")
+                print(
+                    f"✅ Finished download: {dest_path} ({downloaded / (1024**2):.1f} MB)"
+                )
                 return "Downloaded", os.path.getsize(dest_path)
 
         except (RequestException, IncompleteRead, IOError) as err:
@@ -78,6 +82,7 @@ def safe_download_ftp(download_url, dest_path, retries=3, backoff=10):
             last_reported = 0
 
             with open(tmp_local, "wb") as file:
+
                 def callback(chunk):
                     nonlocal downloaded, last_reported
                     file.write(chunk)
@@ -91,7 +96,9 @@ def safe_download_ftp(download_url, dest_path, retries=3, backoff=10):
             ftp.quit()
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
             shutil.move(tmp_local, dest_path)
-            print(f"✅ Finished FTP download: {dest_path} ({downloaded / (1024**2):.1f} MB)")
+            print(
+                f"✅ Finished FTP download: {dest_path} ({downloaded / (1024**2):.1f} MB)"
+            )
             return "Downloaded", os.path.getsize(dest_path)
 
         except Exception as err:
@@ -126,12 +133,18 @@ def process_urls(output_path, items, summary_file, onedata_base):
 
             # Build target paths
             onedata_filename = get_safe_filename_from_url(download_url, output_path)
-            cache_filename = get_safe_filename_from_url(download_url, os.path.join(CACHE_BASE, os.path.relpath(output_path, onedata_base)))
+            cache_filename = get_safe_filename_from_url(
+                download_url,
+                os.path.join(CACHE_BASE, os.path.relpath(output_path, onedata_base)),
+            )
 
             os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
 
             # Check if file already exists in Onedata
-            if os.path.exists(onedata_filename) and os.path.getsize(onedata_filename) > 0:
+            if (
+                os.path.exists(onedata_filename)
+                and os.path.getsize(onedata_filename) > 0
+            ):
                 status = "Download skipped (Already in Onedata)"
                 file_size = os.path.getsize(onedata_filename)
             elif os.path.exists(cache_filename) and os.path.getsize(cache_filename) > 0:
@@ -195,7 +208,9 @@ def process_yaml(yaml_path, output_dir, summary_file, onedata_base):
             tutorial_name = sanitize_name(tutorial["name"])
             tutorial_path = os.path.join(topic_path, tutorial_name)
 
-            process_urls(tutorial_path, tutorial.get("items", []), summary_file, onedata_base)
+            process_urls(
+                tutorial_path, tutorial.get("items", []), summary_file, onedata_base
+            )
 
             dois = tutorial.get("items", [])
             for doi in dois:
@@ -211,9 +226,21 @@ def process_yaml(yaml_path, output_dir, summary_file, onedata_base):
 def main():
     start_time = time.time()
 
-    parser = argparse.ArgumentParser(description="process data-library.yaml files and create output directory structure.")
-    parser.add_argument("--input", dest="project_dir", required=True, help="path to the training-material directory")
-    parser.add_argument("--output", dest="output_dir", required=True, help="path to the Onedata mount directory")
+    parser = argparse.ArgumentParser(
+        description="process data-library.yaml files and create output directory structure."
+    )
+    parser.add_argument(
+        "--input",
+        dest="project_dir",
+        required=True,
+        help="path to the training-material directory",
+    )
+    parser.add_argument(
+        "--output",
+        dest="output_dir",
+        required=True,
+        help="path to the Onedata mount directory",
+    )
 
     args = parser.parse_args()
 
@@ -221,23 +248,23 @@ def main():
     os.makedirs(TMP_BASE, exist_ok=True)
     write_summary_header(local_summary_file)
 
-
     # 🔹 Test: only one YAML file (dunovo)
-    yaml_path = os.path.join(
-        args.project_dir,
-        "topics/variant-analysis/tutorials/dunovo/data-library.yaml"
-    )
-    print(f"➡️ Processing single YAML (test mode): {yaml_path}")
-    process_yaml(yaml_path, args.output_dir, local_summary_file, args.output_dir)
+    # yaml_path = os.path.join(
+    #    args.project_dir,
+    #    "topics/variant-analysis/tutorials/dunovo/data-library.yaml"
+    # )
+    # print(f"➡️ Processing single YAML (test mode): {yaml_path}")
+    # process_yaml(yaml_path, args.output_dir, local_summary_file, args.output_dir)
 
-    # 🔹 Commented out full loop
-    # for root, dirs, files in os.walk(args.project_dir):
-    #     for file in files:
-    #         if file == "data-library.yaml":
-    #             yaml_path = os.path.join(root, file)
-    #             print(f"➡️ Processing YAML: {yaml_path}")
-    #             process_yaml(yaml_path, args.output_dir, local_summary_file, args.output_dir)
-
+    # full loop
+    for root, dirs, files in os.walk(args.project_dir):
+        for file in files:
+            if file == "data-library.yaml":
+                yaml_path = os.path.join(root, file)
+                print(f"➡️ Processing YAML: {yaml_path}")
+                process_yaml(
+                    yaml_path, args.output_dir, local_summary_file, args.output_dir
+                )
 
     calculate_overall_size(local_summary_file)
 
@@ -245,7 +272,6 @@ def main():
     try:
         shutil.copy(local_summary_file, summary_file)
         print(f"Summary file created locally at: {local_summary_file}")
-        print(f"Summary file copied to Onedata at: {summary_file}")
     except Exception as e:
         print(f"Failed to copy summary to Onedata: {e}")
 

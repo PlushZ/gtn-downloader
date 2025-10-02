@@ -67,9 +67,3 @@ jobs:
         with:
           name: download-summary
           path: tmp/download-summary.tsv
-
-      - name: Clean local cache and tmp
-        run: |
-          # keep the summary, remove everything else
-          find /workspace/tmp -type f ! -name 'download-summary.tsv' -delete
-          rm -rf /workspace/cache/*
