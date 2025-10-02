@@ -218,7 +218,7 @@ def process_yaml(yaml_path, output_dir, summary_file, onedata_base):
                 doi_path = os.path.join(tutorial_path, doi_name)
 
                 if not os.path.exists(doi_path):
-                    os.makedirs(doi_path)
+                    os.makedirs(doi_path, exist_ok=True)
 
                 process_urls(doi_path, doi.get("items", []), summary_file, onedata_base)
 
