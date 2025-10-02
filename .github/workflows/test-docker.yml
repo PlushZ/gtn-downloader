@@ -39,7 +39,7 @@ jobs:
               sleep 10
               apt-get update && apt-get install -y python3 python3-pip
               pip3 install -r requirements.txt
-              python3 bin/data-library-download.py \
+              python3 bin/test-download.py \
                 --input training-material \
                 --output '/mnt/onedata/GTN data'
             "
@@ -65,3 +65,9 @@ jobs:
         with:
           name: download-summary
           path: tmp/download-summary.tsv
+
+      - name: Clean local cache and tmp
+        run: |
+          # keep the summary, remove everything else
+          find /workspace/tmp -type f ! -name 'download-summary.tsv' -delete
+          rm -rf /workspace/cache/*
