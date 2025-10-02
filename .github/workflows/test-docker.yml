@@ -57,6 +57,7 @@ jobs:
               mkdir -p /mnt/onedata
               oneclient /mnt/onedata &
               sleep 10
+              apt-get update && apt-get install -y rsync
               rsync -av --progress /workspace/cache/ '/mnt/onedata/GTN data/'
             "
 
