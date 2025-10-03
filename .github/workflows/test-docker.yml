@@ -28,12 +28,14 @@ jobs:
             -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
             -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
             -v ${{ github.workspace }}:/workspace \
-            onedata/oneclient:21.02.1 bash -c "
+            onedata/oneclient:21.02.1 \
+            bash -c '
+              set -e
               mkdir -p /mnt/onedata
               oneclient /mnt/onedata
               sleep 5
-              find '/mnt/onedata/GTN data' -type f -printf '%P\n' > /workspace/existing.txt || true
-            "
+              find "/mnt/onedata/GTN data" -type f -printf "%P\n" > /workspace/existing.txt || true
+            '
             
       - name: Run GTN downloader
         run: |
