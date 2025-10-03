@@ -11,8 +11,9 @@ from requests.exceptions import RequestException
 from http.client import IncompleteRead
 
 
-CACHE_BASE = "/workspace/cache"  # Local cache for downloads
-TMP_BASE = "/workspace/tmp"      # Temp dir for partial files
+BASE_DIR = os.environ.get("GITHUB_WORKSPACE", os.getcwd())
+CACHE_BASE = os.path.join(BASE_DIR, "cache")
+TMP_BASE   = os.path.join(BASE_DIR, "tmp")
 
 
 def safe_download_http(download_url, dest_path, retries=3, backoff=10):
