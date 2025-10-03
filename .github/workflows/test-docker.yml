@@ -34,7 +34,7 @@ jobs:
               sleep 5
               find '/mnt/onedata/GTN data' -type f -printf '%P\n' > /workspace/existing.txt || true
             "
-
+            
       - name: Run GTN downloader
         run: |
           python3 -m pip install -r requirements.txt
