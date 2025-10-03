@@ -41,9 +41,3 @@ jobs:
                 --input /workspace/training-material \
                 --output '/mnt/onedata/GTN data'
             "
-            
-      - name: Upload summary file as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: download-summary
-          path: tmp/download-summary.tsv

@@ -153,8 +153,11 @@ def process_urls(output_path, items, summary_file):
 
         filename = get_safe_filename_from_url(download_url, output_path)
         os.makedirs(output_path, exist_ok=True)
+        
+        #debugging
+        print(f"🔍 Checking if exists: {filename} -> file={os.path.isfile(filename)} size={(os.path.getsize(filename) if os.path.isfile(filename) else 0)}")
 
-        if os.path.exists(filename) and os.path.getsize(filename) > 0:
+        if os.path.isfile(filename) and os.path.getsize(filename) > 0:
             status = "Skipped (exists)"
             file_size = os.path.getsize(filename)
         else:
