@@ -9,9 +9,8 @@ on:
     - cron: 30 23 * * 6 # minute hour month-day month week-day
 
 jobs:
-  execute_script:
+  gtn-download:
     runs-on: ubuntu-latest
-
     env:
       ONECLIENT_ACCESS_TOKEN: ${{ secrets.ONECLIENT_ACCESS_TOKEN }}
       ONECLIENT_PROVIDER_HOST: ${{ secrets.ONECLIENT_PROVIDER_HOST }}
@@ -23,46 +22,41 @@ jobs:
       - name: Clone training-material repo
         run: git clone --depth 1 https://github.com/galaxyproject/training-material.git
 
-      # Step 1: Run downloader (download -> local cache, check against Onedata)
-      - name: Run GTN-downloader in Docker
+      - name: Build skip list of existing files in Onedata
         run: |
           docker run --rm --privileged \
-            --entrypoint bash \
             -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
             -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
             -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            onedata/oneclient:21.02.1 -c "
-              set -ex
+            onedata/oneclient:21.02.1 bash -c "
               mkdir -p /mnt/onedata
-              oneclient /mnt/onedata &
-              sleep 10
-              apt-get update && apt-get install -y python3 python3-pip
-              pip3 install -r requirements.txt
-              python3 bin/test-download.py \
-                --input training-material \
-                --output '/mnt/onedata/GTN data'
+              oneclient /mnt/onedata
+              sleep 5
+              find '/mnt/onedata/GTN data' -type f -printf '%P\n' > /workspace/existing.txt || true
             "
 
-      # Step 2: After everything is downloaded locally, push cache to Onedata
+      - name: Run GTN downloader
+        run: |
+          python3 -m pip install -r requirements.txt
+          python3 bin/test-download.py \
+            --input training-material \
+            --skip-list existing.txt
+
       - name: Push local cache to Onedata
         run: |
           docker run --rm --privileged \
-            --entrypoint bash \
             -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
             -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
             -v ${{ github.workspace }}:/workspace \
-            onedata/oneclient:21.02.1 -c "
-              set -ex
+            onedata/oneclient:21.02.1 bash -c "
               mkdir -p /mnt/onedata
-              oneclient /mnt/onedata &
-              sleep 10
+              oneclient /mnt/onedata
+              sleep 5
               apt-get update && apt-get install -y rsync
-              rsync -av --progress --no-perms --no-owner --no-group /workspace/cache/ '/mnt/onedata/GTN data/'
-
+              rsync -av --progress /workspace/cache/ '/mnt/onedata/GTN data/'
             "
 
-      - name: Upload local summary file
+      - name: Upload summary file as artifact
         uses: actions/upload-artifact@v4
         with:
           name: download-summary
