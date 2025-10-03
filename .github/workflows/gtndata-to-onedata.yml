@@ -36,7 +36,7 @@ jobs:
               set -e
               mkdir -p /mnt/onedata
               oneclient /mnt/onedata &
-              sleep 10
+              sleep 5
               apt-get update && apt-get install -y python3 python3-pip
               pip3 install -r requirements.txt
               python3 bin/data-library-download.py \

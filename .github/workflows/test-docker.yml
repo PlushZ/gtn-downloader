@@ -22,41 +22,26 @@ jobs:
       - name: Clone training-material repo
         run: git clone --depth 1 https://github.com/galaxyproject/training-material.git
 
-      - name: Build skip list of existing files in Onedata
+      - name: Run GTN-downloader in Docker
         run: |
           docker run --rm --privileged \
-            --entrypoint /bin/bash \
+            --entrypoint bash \
             -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
             -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
             -v ${{ github.workspace }}:/workspace \
-            onedata/oneclient:21.02.1 -lc "set -e; \
-              mkdir -p /mnt/onedata; \
-              oneclient /mnt/onedata; \
-              sleep 5; \
-              find '/mnt/onedata/GTN data' -type f -printf '%P\n' > /workspace/existing.txt || true"
-
-      - name: Run GTN downloader
-        run: |
-          python3 -m pip install -r requirements.txt
-          python3 bin/test-download.py \
-            --input training-material \
-            --skip-list existing.txt
-
-      - name: Push local cache to Onedata
-        run: |
-          docker run --rm --privileged \
-            --entrypoint /bin/bash \
-            -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
-            -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
-            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
             onedata/oneclient:21.02.1 -c "
+              set -e
               mkdir -p /mnt/onedata
-              oneclient /mnt/onedata
+              oneclient /mnt/onedata &
               sleep 5
-              apt-get update && apt-get install -y rsync
-              rsync -av --progress --no-perms --no-owner --no-group /workspace/cache/ '/mnt/onedata/GTN data/'
+              apt-get update && apt-get install -y python3 python3-pip
+              pip3 install -r requirements.txt
+              python3 bin/test-download.py \
+                --input /workspace/training-material \
+                --output '/mnt/onedata/GTN data'
             "
-
+            
       - name: Upload summary file as artifact
         uses: actions/upload-artifact@v4
         with:
