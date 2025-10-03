@@ -155,7 +155,7 @@ def process_urls(output_path, items, summary_file):
         os.makedirs(output_path, exist_ok=True)
         
         #debugging
-        print(f"🔍 Checking if exists: {filename} -> file={os.path.isfile(filename)} size={(os.path.getsize(filename) if os.path.isfile(filename) else 0)}")
+        #print(f"🔍 Checking if exists: {filename} -> file={os.path.isfile(filename)} size={(os.path.getsize(filename) if os.path.isfile(filename) else 0)}")
 
         if os.path.isfile(filename) and os.path.getsize(filename) > 0:
             status = "Skipped (exists)"
@@ -232,19 +232,19 @@ def main():
 
 
     # Test: only one YAML file 
-    yaml_path = os.path.join(
-       args.project_dir,
-       "topics/variant-analysis/tutorials/beacon_cnv_query/data-library.yaml"
-    )
-    print(f"➡️ Processing single YAML (test mode): {yaml_path}")
-    process_yaml(yaml_path, args.output_dir, summary_file)
+    #yaml_path = os.path.join(
+    #   args.project_dir,
+    #   "topics/variant-analysis/tutorials/beacon_cnv_query/data-library.yaml"
+    #)
+    #print(f"➡️ Processing single YAML (test mode): {yaml_path}")
+    #process_yaml(yaml_path, args.output_dir, summary_file)
 
-    #for root, dirs, files in os.walk(args.project_dir):
-    #    for file in files:
-    #        if file == "data-library.yaml":
-    #            yaml_path = os.path.join(root, file)
-    #            print(f"➡️ Processing {yaml_path}")
-    #            process_yaml(yaml_path, args.output_dir, summary_file)
+    for root, dirs, files in os.walk(args.project_dir):
+        for file in files:
+            if file == "data-library.yaml":
+                yaml_path = os.path.join(root, file)
+                print(f"➡️ Processing {yaml_path}")
+                process_yaml(yaml_path, args.output_dir, summary_file)
 
     calculate_overall_size(summary_file)
     print(f"✅ Finished. Summary at {summary_file}")
