@@ -14,6 +14,16 @@ from http.client import IncompleteRead
 TMP_BASE = "/tmp"  # temporary local dir for partial downloads
 
 
+# --- Load forbidden list (auto from script dir) ---
+def load_forbidden_list():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    forbidden_path = os.path.join(script_dir, "list_forbidden.txt")
+    if not os.path.exists(forbidden_path):
+        return set()
+    with open(forbidden_path, "r") as f:
+        return set(line.strip() for line in f if line.strip())
+
+
 # --- Onedata health check ---
 def ensure_onedata_alive(mountpoint="/mnt/onedata"):
     test_file = os.path.join(mountpoint, ".healthcheck")
@@ -42,7 +52,7 @@ def safe_download_http(download_url, dest_path, retries=1, backoff=5):
                 return "Oneclient disconnected", 0
 
             print(f"➡️ Starting HTTP download: {download_url}")
-            with requests.get(download_url, stream=True, timeout=(10, 120)) as response:
+            with requests.get(download_url, stream=True, timeout=(5, 30)) as response:
                 response.raise_for_status()
 
                 total_size = response.headers.get("Content-Length")
@@ -134,7 +144,7 @@ def get_safe_filename_from_url(url, output_path):
     return os.path.join(output_path, filename)
 
 
-def process_urls(output_path, items, summary_file):
+def process_urls(output_path, items, summary_file, forbidden):
     for entry in items:
         url = entry.get("url", "")
         if not url:
@@ -144,11 +154,14 @@ def process_urls(output_path, items, summary_file):
         if download_url.startswith("wget "):
             download_url = download_url.replace("wget ", "").strip()
 
+        # Forbidden check
+        if download_url in forbidden:
+            print(f"⛔ Skipping forbidden URL: {download_url}")
+            update_urls_file(output_path, url, "Forbidden/NotFound", 0, summary_file)
+            continue
+
         filename = get_safe_filename_from_url(download_url, output_path)
         os.makedirs(output_path, exist_ok=True)
-        
-        #debugging
-        #print(f"🔍 Checking if exists: {filename} -> file={os.path.isfile(filename)} size={(os.path.getsize(filename) if os.path.isfile(filename) else 0)}")
 
         if os.path.isfile(filename) and os.path.getsize(filename) > 0:
             status = "Skipped (exists)"
@@ -190,7 +203,7 @@ def calculate_overall_size(summary_file):
         file.write(f"Overall\t\t\t{overall_size}\n{content}")
 
 
-def process_yaml(yaml_path, output_dir, summary_file):
+def process_yaml(yaml_path, output_dir, summary_file, forbidden):
     with open(yaml_path, "r") as file:
         data = yaml.safe_load(file)
 
@@ -200,18 +213,18 @@ def process_yaml(yaml_path, output_dir, summary_file):
     for topic in topics:
         topic_name = sanitize_name(topic["name"])
         topic_path = os.path.join(output_dir, destination_name, topic_name)
-        process_urls(topic_path, topic.get("items", []), summary_file)
+        process_urls(topic_path, topic.get("items", []), summary_file, forbidden)
 
         for tutorial in topic.get("items", []):
             tutorial_name = sanitize_name(tutorial["name"])
             tutorial_path = os.path.join(topic_path, tutorial_name)
-            process_urls(tutorial_path, tutorial.get("items", []), summary_file)
+            process_urls(tutorial_path, tutorial.get("items", []), summary_file, forbidden)
 
             for doi in tutorial.get("items", []):
                 doi_name = sanitize_name(doi.get("name", ""))
                 doi_path = os.path.join(tutorial_path, doi_name)
                 os.makedirs(doi_path, exist_ok=True)
-                process_urls(doi_path, doi.get("items", []), summary_file)
+                process_urls(doi_path, doi.get("items", []), summary_file, forbidden)
 
 
 def main():
@@ -220,24 +233,18 @@ def main():
     parser.add_argument("--output", dest="output_dir", required=True)
     args = parser.parse_args()
 
+    forbidden = load_forbidden_list()
+    print(f"ℹ️ Loaded forbidden list with {len(forbidden)} URLs")
+
     summary_file = os.path.join(args.output_dir, "download-summary.tsv")
     write_summary_header(summary_file)
-
-
-    # Test: only one YAML file 
-    #yaml_path = os.path.join(
-    #   args.project_dir,
-    #   "topics/variant-analysis/tutorials/beacon_cnv_query/data-library.yaml"
-    #)
-    #print(f"➡️ Processing single YAML (test mode): {yaml_path}")
-    #process_yaml(yaml_path, args.output_dir, summary_file)
 
     for root, dirs, files in os.walk(args.project_dir):
         for file in files:
             if file == "data-library.yaml":
                 yaml_path = os.path.join(root, file)
                 print(f"➡️ Processing {yaml_path}")
-                process_yaml(yaml_path, args.output_dir, summary_file)
+                process_yaml(yaml_path, args.output_dir, summary_file, forbidden)
 
     calculate_overall_size(summary_file)
     print(f"✅ Finished. Summary at {summary_file}")
