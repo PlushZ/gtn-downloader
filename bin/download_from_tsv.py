@@ -44,6 +44,17 @@ def safe_download_http(url, dest_path, retries=1, backoff=5):
     return "Error", 0
 
 
+def normalize_path(path: str) -> str:
+    """Ensure all files go under /mnt/onedata/GTN data/..."""
+    if path.startswith("/mnt/onedata/GTN---Material"):
+        return path.replace(
+            "/mnt/onedata/GTN---Material",
+            "/mnt/onedata/GTN data/GTN---Material",
+            1
+        )
+    return path
+
+
 def main():
     if not os.path.exists(TSV_FILE):
         print(f"❌ Missing {TSV_FILE}")
@@ -60,6 +71,9 @@ def main():
             except ValueError:
                 print(f"⚠️ Skipping malformed line: {line}")
                 continue
+
+            # Normalize path to point inside "GTN data"
+            path = normalize_path(path)
 
             # Check if file already exists and is non-zero
             if os.path.isfile(path) and os.path.getsize(path) > 0:

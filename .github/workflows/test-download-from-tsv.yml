@@ -17,9 +17,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Clone training-material repo
-        run: git clone --depth 1 https://github.com/galaxyproject/training-material.git
-
       - name: Run GTN-downloader in Docker
         run: |
           docker run --rm --privileged \
