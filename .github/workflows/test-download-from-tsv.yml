@@ -4,9 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-    #  - main
-  schedule:
-    #- cron: 30 23 * * 6 # minute hour month-day month week-day
+      - main
 
 jobs:
   gtn-download:
@@ -37,7 +35,5 @@ jobs:
               sleep 5
               apt-get update && apt-get install -y python3 python3-pip
               pip3 install -r requirements.txt
-              python3 bin/test-download.py \
-                --input /workspace/training-material \
-                --output '/mnt/onedata/GTN data'
+              python3 bin/test-download-from-tsv.py'
             "

@@ -239,6 +239,14 @@ def main():
     summary_file = os.path.join(args.output_dir, "download-summary.tsv")
     write_summary_header(summary_file)
 
+    # Test: only one YAML file 
+    #yaml_path = os.path.join(
+    #   args.project_dir,
+    #   "topics/variant-analysis/tutorials/beacon_cnv_query/data-library.yaml"
+    #)
+    #print(f"➡️ Processing single YAML (test mode): {yaml_path}")
+    #process_yaml(yaml_path, args.output_dir, summary_file, forbidden)
+
     for root, dirs, files in os.walk(args.project_dir):
         for file in files:
             if file == "data-library.yaml":
