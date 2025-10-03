@@ -25,11 +25,11 @@ jobs:
       - name: Build skip list of existing files in Onedata
         run: |
           docker run --rm --privileged \
+            --entrypoint /bin/bash \
             -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
             -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
             -v ${{ github.workspace }}:/workspace \
-            onedata/oneclient:21.02.1 \
-            /bin/bash -lc "set -e; \
+            onedata/oneclient:21.02.1 -lc "set -e; \
               mkdir -p /mnt/onedata; \
               oneclient /mnt/onedata; \
               sleep 5; \
