@@ -7,33 +7,20 @@ TSV_FILE = os.path.join(os.path.dirname(__file__), "files_to_download.tsv")
 TMP_BASE = "/tmp"  # temp dir for partial downloads
 
 
-def ensure_onedata_alive(mountpoint="/mnt/onedata"):
-    """Check if Onedata is writable"""
-    test_file = os.path.join(mountpoint, ".healthcheck")
-    try:
-        with open(test_file, "w") as f:
-            f.write("ok")
-        os.remove(test_file)
-        return True
-    except Exception as e:
-        print(f"❌ Onedata not available: {e}")
-        return False
-
-
 def safe_download_http(url, dest_path, retries=1, backoff=5):
+    """Download a file over HTTP with retries, writing to temp then moving into place"""
     tmp_local = os.path.join(TMP_BASE, os.path.basename(dest_path))
     os.makedirs(os.path.dirname(tmp_local), exist_ok=True)
 
     for attempt in range(retries):
         try:
-            if not ensure_onedata_alive():
-                return "Oneclient disconnected", 0
-
             print(f"➡️ Downloading: {url}")
             with requests.get(url, stream=True, timeout=(5, 30)) as r:
                 r.raise_for_status()
+
                 downloaded = 0
                 last_reported = 0
+
                 with open(tmp_local, "wb") as f:
                     for chunk in r.iter_content(chunk_size=256 * 1024):
                         if chunk:
@@ -49,7 +36,7 @@ def safe_download_http(url, dest_path, retries=1, backoff=5):
             return "Downloaded", os.path.getsize(dest_path)
 
         except Exception as e:
-            print(f"⚠️ Error downloading {url}: {e}")
+            print(f"⚠️ Error downloading {url} (attempt {attempt+1}): {e}")
             if os.path.exists(tmp_local):
                 os.remove(tmp_local)
             time.sleep(backoff)
@@ -67,9 +54,14 @@ def main():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            path, url = line.split("\t")
 
-            # check existing file
+            try:
+                path, url = line.split("\t")
+            except ValueError:
+                print(f"⚠️ Skipping malformed line: {line}")
+                continue
+
+            # Check if file already exists and is non-zero
             if os.path.isfile(path) and os.path.getsize(path) > 0:
                 print(f"⏩ Skipped (exists): {path}")
                 continue
