@@ -226,20 +226,20 @@ def main():
 
 
     # Test: only one YAML file 
-    yaml_path = os.path.join(
-       args.project_dir,
-       "topics/variant-analysis/tutorials/beacon_cnv_query/data-library.yaml"
-    )
-    print(f"➡️ Processing single YAML (test mode): {yaml_path}")
-    process_yaml(yaml_path, CACHE_BASE, local_summary_file, skip_list)
+    #yaml_path = os.path.join(
+    #   args.project_dir,
+    #   "topics/variant-analysis/tutorials/beacon_cnv_query/data-library.yaml"
+    #)
+    #print(f"➡️ Processing single YAML (test mode): {yaml_path}")
+    #process_yaml(yaml_path, CACHE_BASE, local_summary_file, skip_list)
 
 
-    #for root, dirs, files in os.walk(args.project_dir):
-    #    for file in files:
-    #        if file == "data-library.yaml":
-    #            yaml_path = os.path.join(root, file)
-    #            print(f"➡️ Processing YAML: {yaml_path}")
-    #            process_yaml(yaml_path, CACHE_BASE, local_summary_file, skip_list)
+    for root, dirs, files in os.walk(args.project_dir):
+        for file in files:
+            if file == "data-library.yaml":
+                yaml_path = os.path.join(root, file)
+                print(f"➡️ Processing YAML: {yaml_path}")
+                process_yaml(yaml_path, CACHE_BASE, local_summary_file, skip_list)
 
     calculate_overall_size(local_summary_file)
     print(f"✅ Summary created at: {local_summary_file}")
