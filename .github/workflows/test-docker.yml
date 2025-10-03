@@ -49,7 +49,7 @@ jobs:
             -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
             -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
             -v ${{ github.workspace }}:/workspace \
-            onedata/oneclient:21.02.1 bash -c "
+            onedata/oneclient:21.02.1 -c "
               mkdir -p /mnt/onedata
               oneclient /mnt/onedata
               sleep 5
