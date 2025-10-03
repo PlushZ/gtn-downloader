@@ -39,11 +39,7 @@ def safe_download_http(download_url, dest_path, retries=1, backoff=5):
     for attempt in range(retries):
         try:
             if not ensure_onedata_alive():
-                print("🔄 Remounting Oneclient...")
-                os.system("oneclient /mnt/onedata")
-                time.sleep(5)
-                if not ensure_onedata_alive():
-                    return "Oneclient disconnected", 0
+                return "Oneclient disconnected", 0
 
             print(f"➡️ Starting HTTP download: {download_url}")
             with requests.get(download_url, stream=True, timeout=(10, 120)) as response:
@@ -89,10 +85,7 @@ def safe_download_ftp(download_url, dest_path, retries=1, backoff=5):
     for attempt in range(retries):
         try:
             if not ensure_onedata_alive():
-                os.system("oneclient /mnt/onedata")
-                time.sleep(5)
-                if not ensure_onedata_alive():
-                    return "Oneclient disconnected", 0
+                return "Oneclient disconnected", 0
 
             ftp_host = download_url.split("://")[1].split("/")[0]
             ftp = ftplib.FTP(ftp_host)
