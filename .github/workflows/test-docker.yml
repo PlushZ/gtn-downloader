@@ -54,7 +54,7 @@ jobs:
               oneclient /mnt/onedata
               sleep 5
               apt-get update && apt-get install -y rsync
-              rsync -av --progress /workspace/cache/ '/mnt/onedata/GTN data/'
+              rsync -av --progress --no-perms --no-owner --no-group /workspace/cache/ '/mnt/onedata/GTN data/'
             "
 
       - name: Upload summary file as artifact
