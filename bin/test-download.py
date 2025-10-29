@@ -33,7 +33,7 @@ def ensure_onedata_alive(mountpoint="/mnt/onedata"):
         os.remove(test_file)
         return True
     except Exception:
-        print("⚠️ Oneclient seems disconnected, trying to remount...")
+        #print("⚠️ Oneclient seems disconnected, trying to remount...")
         os.system("pkill oneclient || true")
         time.sleep(2)
         os.system("oneclient /mnt/onedata &")
@@ -43,7 +43,8 @@ def ensure_onedata_alive(mountpoint="/mnt/onedata"):
 
 # --- HTTP download ---
 def safe_download_http(download_url, dest_path, retries=1, backoff=5):
-    tmp_local = os.path.join(TMP_BASE, os.path.basename(dest_path))
+    base_name = os.path.basename(dest_path) or "tempfile.tmp"
+    tmp_local = os.path.join(TMP_BASE, base_name)
     os.makedirs(os.path.dirname(tmp_local), exist_ok=True)
     e = None
 
@@ -53,15 +54,20 @@ def safe_download_http(download_url, dest_path, retries=1, backoff=5):
     for attempt in range(retries):
         try:
             if not ensure_onedata_alive():
+                print("⚠️ Oneclient not ready, skipping download for now.", flush=True)
                 return "Oneclient disconnected", 0
 
-            print(f"➡️ Starting HTTP download: {download_url}")
+            print(f"➡️ Starting HTTP download: {download_url}", flush=True)
             with requests.get(download_url, stream=True, timeout=(5, 30)) as response:
+                if response.status_code in (403, 404):
+                    print(f"🚫 Skipping unavailable URL ({response.status_code}): {download_url}", flush=True)
+                    return f"HTTP {response.status_code}", 0
+
                 response.raise_for_status()
 
                 total_size = response.headers.get("Content-Length")
                 if total_size:
-                    print(f"ℹ️ Expected size: {int(total_size) / (1024**3):.2f} GiB")
+                    print(f"ℹ️ Expected size: {int(total_size) / (1024**3):.2f} GiB", flush=True)
 
                 downloaded = 0
                 last_reported = 0
@@ -72,21 +78,22 @@ def safe_download_http(download_url, dest_path, retries=1, backoff=5):
                             f.write(chunk)
                             downloaded += len(chunk)
                             if downloaded - last_reported >= 100 * 1024 * 1024:
-                                print(f"📥 Downloaded {downloaded / (1024**2):.1f} MB...")
+                                print(f"📥 Downloaded {downloaded / (1024**2):.1f} MB...", flush=True)
                                 last_reported = downloaded
 
                 os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                 shutil.move(tmp_local, dest_path)
-                print(f"✅ Finished: {dest_path} ({downloaded / (1024**2):.1f} MB)")
+                print(f"✅ Finished: {dest_path} ({downloaded / (1024**2):.1f} MB)", flush=True)
                 return "Downloaded", os.path.getsize(dest_path)
 
-        except (RequestException, IncompleteRead, IOError) as err:
+        except (RequestException, IncompleteRead, IOError, OSError) as err:
             e = err
-            print(f"⚠️ HTTP failed: {err}")
-            if os.path.exists(tmp_local):
+            print(f"⚠️ HTTP failed (attempt {attempt+1}): {err}", flush=True)
+            if os.path.isfile(tmp_local):
                 os.remove(tmp_local)
             time.sleep(backoff)
 
+    print(f"❌ Giving up after {retries} attempt(s): {download_url}", flush=True)
     return f"Error downloading {download_url}: {e}", 0
 
 
