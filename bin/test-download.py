@@ -32,9 +32,13 @@ def ensure_onedata_alive(mountpoint="/mnt/onedata"):
             f.write("ok")
         os.remove(test_file)
         return True
-    except Exception as e:
-        print(f"❌ Onedata mount not available: {e}")
-        return False
+    except Exception:
+        print("⚠️ Oneclient seems disconnected, trying to remount...")
+        os.system("pkill oneclient || true")
+        time.sleep(2)
+        os.system("oneclient /mnt/onedata &")
+        time.sleep(5)
+        return True
 
 
 # --- HTTP download ---
