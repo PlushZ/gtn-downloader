@@ -1,4 +1,4 @@
-name: GTN downloader - test
+name: GTN downloader - test old
 
 on:
   workflow_dispatch:
