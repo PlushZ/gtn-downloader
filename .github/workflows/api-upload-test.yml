@@ -1,0 +1,31 @@
+name: Onedata API Upload Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  api-upload-test:
+    runs-on: ubuntu-latest
+    env:
+      ONECLIENT_ACCESS_TOKEN: ${{ secrets.ONEPROVIDER_REST_ACCESS_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clone training-material repo
+        run: git clone --depth 1 https://github.com/galaxyproject/training-material.git
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests pyyaml
+
+      - name: Run API upload test
+        run: python bin/api_upload_test.py

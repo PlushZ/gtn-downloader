@@ -1,43 +1,43 @@
-name: GTN downloader - test
+#name: GTN downloader - test
 
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: 30 23 * * 6 # minute hour month-day month week-day
+#on:
+#  workflow_dispatch:
+#  push:
+#    branches:
+#      - main
+#  schedule:
+#    - cron: 30 23 * * 6 # minute hour month-day month week-day
 
-jobs:
-  gtn-download:
-    runs-on: ubuntu-latest
-    env:
-      ONECLIENT_ACCESS_TOKEN: ${{ secrets.ONECLIENT_ACCESS_TOKEN }}
-      ONECLIENT_PROVIDER_HOST: ${{ secrets.ONECLIENT_PROVIDER_HOST }}
+#jobs:
+#  gtn-download:
+#    runs-on: ubuntu-latest
+#    env:
+#      ONECLIENT_ACCESS_TOKEN: ${{ secrets.ONECLIENT_ACCESS_TOKEN }}
+#      ONECLIENT_PROVIDER_HOST: ${{ secrets.ONECLIENT_PROVIDER_HOST }}
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
 
-      - name: Clone training-material repo
-        run: git clone --depth 1 https://github.com/galaxyproject/training-material.git
+#      - name: Clone training-material repo
+#        run: git clone --depth 1 https://github.com/galaxyproject/training-material.git
 
-      - name: Run GTN-downloader in Docker
-        run: |
-          docker run --rm --privileged \
-            --entrypoint bash \
-            -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
-            -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            onedata/oneclient:21.02.1 -c "
-              set -e
-              mkdir -p /mnt/onedata
-              oneclient /mnt/onedata &
-              sleep 5
-              apt-get update && apt-get install -y python3 python3-pip
-              pip3 install -r requirements.txt
-              python3 bin/test-download.py \
-                --input /workspace/training-material \
-                --output '/mnt/onedata/GTN data'
-            "
+#      - name: Run GTN-downloader in Docker
+#        run: |
+#          docker run --rm --privileged \
+#            --entrypoint bash \
+#            -e ONECLIENT_ACCESS_TOKEN=${ONECLIENT_ACCESS_TOKEN} \
+#            -e ONECLIENT_PROVIDER_HOST=${ONECLIENT_PROVIDER_HOST} \
+#            -v ${{ github.workspace }}:/workspace \
+#            -w /workspace \
+#            onedata/oneclient:21.02.1 -c "
+#              set -e
+#              mkdir -p /mnt/onedata
+#              oneclient /mnt/onedata &
+#              sleep 5
+#              apt-get update && apt-get install -y python3 python3-pip
+#              pip3 install -r requirements.txt
+#              python3 bin/test-download.py \
+#                --input /workspace/training-material \
+#                --output '/mnt/onedata/GTN data'
+#            "
