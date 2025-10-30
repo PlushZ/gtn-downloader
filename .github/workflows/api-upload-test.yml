@@ -10,7 +10,7 @@ jobs:
   api-upload-test:
     runs-on: ubuntu-latest
     env:
-      ONECLIENT_ACCESS_TOKEN: ${{ secrets.ONEPROVIDER_REST_ACCESS_TOKEN }}
+      ONEPROVIDER_REST_ACCESS_TOKEN: ${{ secrets.ONEPROVIDER_REST_ACCESS_TOKEN }}
 
     steps:
       - name: Checkout repository
