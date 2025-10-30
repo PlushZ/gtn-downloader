@@ -28,4 +28,4 @@ jobs:
         run: pip install requests pyyaml
 
       - name: Run API upload test
-        run: python bin/api_upload_test.py
+        run: python bin/api_largefile_test.py
