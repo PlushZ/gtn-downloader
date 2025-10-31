@@ -2,11 +2,11 @@ name: Onedata API Upload
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: 30 23 * * 6
+  #push:
+  #  branches:
+  #    - main
+  #schedule:
+  #  - cron: 30 23 * * 6
 
 jobs:
   api-upload-test:
