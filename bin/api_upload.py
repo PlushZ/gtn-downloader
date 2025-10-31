@@ -8,20 +8,20 @@ import requests
 from urllib.parse import urlparse, unquote, quote
 from requests.exceptions import RequestException, Timeout, ConnectionError, HTTPError
 
-# ========================== CONFIG ==========================
+# Config
 PROVIDER = "plg-cyfronet-01.datahub.egi.eu"
-SPACE_ID = "6de387b1f76aec7e8b925fd1ab92f032chacd1"
-ROOT_ID = "0000000000584FBD677569642373706163655F3664653338376231663736616563376538623932356664316162393266303332636861636431233664653338376231663736616563376538623932356664316162393266303332636861636431"
+SPACE_ID = os.environ.get("ONEPROVIDER_SPACE_ID")
+ROOT_ID = os.environ.get("ONEPROVIDER_ROOT_ID")
 TOKEN = os.environ.get("ONEPROVIDER_REST_ACCESS_TOKEN")
 TMP_DIR = "/tmp/gtn-api-upload"
-# ============================================================
 
 
-# ---------- Utility helpers ----------
+# Utility helpers
+
 
 def sanitize_name(name: str) -> str:
     """Replace unsafe characters for folder names."""
-    return re.sub(r'[\\/:\*,?"<>|%.#!@$&\'\(\)\[\]{} ]', '-', str(name or ""))
+    return re.sub(r'[\\/:\*,?"<>|%.#!@$&\'\(\)\[\]{} ]', "-", str(name or ""))
 
 
 def get_safe_filename_from_url(url):
@@ -42,7 +42,8 @@ def ensure_tmp_clean():
     os.makedirs(TMP_DIR, exist_ok=True)
 
 
-# ---------- Onedata API helpers ----------
+# Onedata API helpers
+
 
 def get_children(parent_id):
     """Return list of child entries (dicts) under given Onedata folder ID."""
@@ -68,7 +69,7 @@ def create_directory(parent_id, name):
         print("⚠️ Skipping directory creation — empty name.")
         return None
 
-    safe_name = quote(name, safe='')
+    safe_name = quote(name, safe="")
 
     url = f"https://{PROVIDER}/api/v3/oneprovider/data/{parent_id}/children?name={safe_name}&type=DIR"
     headers = {"X-Auth-Token": TOKEN}
@@ -93,25 +94,33 @@ def file_exists(parent_id, name):
 
 
 def upload_file(parent_id, local_path, dest_name):
-    """Upload one file into Onedata folder (preserving exact filename)."""
+    """Upload one file into Onedata folder (preserving exact filename, robust for large files)."""
     if not os.path.exists(local_path):
         print(f"⚠️ Local file not found: {local_path}")
         return False
 
-    safe_name = quote(dest_name, safe='')
-
+    safe_name = quote(dest_name, safe="")
     url = f"https://{PROVIDER}/api/v3/oneprovider/data/{parent_id}/children?name={safe_name}"
-    headers = {
-        "X-Auth-Token": TOKEN,
-        "Content-Type": "application/octet-stream"
-    }
+    headers = {"X-Auth-Token": TOKEN, "Content-Type": "application/octet-stream"}
 
-    with open(local_path, "rb") as f:
-        r = requests.post(url, headers=headers, data=f)
+    print(f"➡️ Uploading: {local_path} → {dest_name}")
+
+    with requests.Session() as session:
+        try:
+            with open(local_path, "rb") as f:
+                r = session.post(url, headers=headers, data=f, timeout=(30, 3600))
+        except requests.exceptions.SSLError as e:
+            print(f"⚠️ SSL error during upload: {e}")
+            print("🔁 Retrying with SSL verify disabled (temporary fallback)...")
+            with open(local_path, "rb") as f:
+                r = session.post(
+                    url, headers=headers, data=f, timeout=(30, 3600), verify=False
+                )
 
     if r.status_code == 201:
-        print(f"✅ Uploaded {dest_name} ({os.path.getsize(local_path) / (1024**2):.2f} MB)")
-        # cleanup temp file to save space
+        print(
+            f"✅ Uploaded {dest_name} ({os.path.getsize(local_path) / (1024**2):.2f} MB)"
+        )
         os.remove(local_path)
         return True
 
@@ -126,7 +135,8 @@ def upload_file(parent_id, local_path, dest_name):
         return False
 
 
-# ---------- Download handlers ----------
+# Download handlers
+
 
 def download_http(download_url, dest_path):
     """Download a file via HTTP/HTTPS."""
@@ -177,14 +187,14 @@ def download_file(download_url, dest_path):
         return download_http(download_url, dest_path)
 
 
-# ---------- File upload handler ----------
+# File upload handler
+
 
 def handle_file_upload(url, parent_id):
     """Download file to tmp, upload to Onedata, then clean up."""
     raw_name = get_safe_filename_from_url(url)
     filename = raw_name
 
-    # Skip if file already exists
     if file_exists(parent_id, filename):
         print(f"⏩ Skipping (already exists): {filename}")
         return
@@ -201,7 +211,8 @@ def handle_file_upload(url, parent_id):
         print(f"⚠️ Failed upload for {filename}")
 
 
-# ---------- YAML parsing and processing ----------
+# YAML parsing and processing
+
 
 def process_yaml(yaml_path, parent_id):
     """Parse a YAML and mirror its structure + upload all files."""
@@ -233,7 +244,7 @@ def process_yaml(yaml_path, parent_id):
             items = tutorial.get("items", [])
             has_direct_urls = any("url" in i for i in items)
 
-            # --- Case 1: direct URLs under tutorial ---
+            # direct URLs under tutorial
             if has_direct_urls:
                 for item in items:
                     url = item.get("url")
@@ -241,7 +252,7 @@ def process_yaml(yaml_path, parent_id):
                         handle_file_upload(url, tut_id)
                 continue
 
-            # --- Case 2: nested DOI-level structure ---
+            # nested DOI-level structure
             for doi in items:
                 doi_name = sanitize_name(doi.get("name", ""))
                 doi_id = create_directory(tut_id, doi_name)
@@ -253,7 +264,8 @@ def process_yaml(yaml_path, parent_id):
                         handle_file_upload(url, doi_id)
 
 
-# ---------- MAIN ----------
+# MAIN
+
 
 def main():
     if not TOKEN:
@@ -263,7 +275,7 @@ def main():
     ensure_tmp_clean()
 
     print("🔍 Preparing main folder: GTN data")
-    sandbox_id = ROOT_ID  # use GTN data root
+    sandbox_id = ROOT_ID
 
     for root, _, files in os.walk("training-material"):
         for file in files:
