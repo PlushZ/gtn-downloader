@@ -1,4 +1,4 @@
-name: Onedata API Upload Test
+name: Onedata API Upload
 
 on:
   workflow_dispatch:
