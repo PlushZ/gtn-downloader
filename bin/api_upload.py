@@ -142,7 +142,7 @@ def download_http(download_url, dest_path):
     """Download a file via HTTP/HTTPS."""
     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
     print(f"➡️ HTTP download: {download_url}")
-    with requests.get(download_url, stream=True, timeout=(10, 60)) as r:
+    with requests.get(download_url, stream=True, timeout=(10, 120)) as r:
         if r.status_code in (403, 404):
             print(f"🚫 Skipping ({r.status_code}): {download_url}")
             return None
@@ -205,9 +205,10 @@ def handle_file_upload(url, parent_id):
         return
 
     if upload_file(parent_id, local_file, filename):
-        os.remove(local_file)
-        print(f"🧹 Removed temp file: {local_file}")
+        print(f"🧹 Upload complete and temp file cleaned: {local_file}")
     else:
+        if os.path.exists(local_file):
+            os.remove(local_file)
         print(f"⚠️ Failed upload for {filename}")
 
 
@@ -277,11 +278,22 @@ def main():
     print("🔍 Preparing main folder: GTN data")
     sandbox_id = ROOT_ID
 
-    for root, _, files in os.walk("training-material"):
+    #for root, _, files in os.walk("training-material"):
+    #    for file in files:
+    #        if file == "data-library.yaml":
+    #            yaml_path = os.path.join(root, file)
+    #            process_yaml(yaml_path, sandbox_id)
+
+    # ===========TESTING=================================================
+
+    test_dir = "training-material/topics/proteomics/tutorials/"
+    for root, _, files in os.walk(test_dir):
         for file in files:
             if file == "data-library.yaml":
                 yaml_path = os.path.join(root, file)
                 process_yaml(yaml_path, sandbox_id)
+
+    # ============================================================
 
     print("✅ Finished full upload run.")
 
