@@ -25,10 +25,10 @@ def sanitize_name(name: str) -> str:
 
 
 def sanitize_filename(name: str) -> str:
-    """Preserve dots in filenames, sanitize rest."""
-    base, ext = os.path.splitext(str(name or ""))
-    base = re.sub(r'[\\/:\*,?"<>|%.#!@$&\'\(\)\[\]{} ]', '-', base)
-    return base + ext
+    """Replace only forbidden characters for filenames."""
+    name = str(name or "")
+    return re.sub(r'[^A-Za-z0-9._\-]', '-', name)
+
 
 
 def get_safe_filename_from_url(url):
