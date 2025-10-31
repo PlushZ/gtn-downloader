@@ -20,7 +20,9 @@ TMP_DIR = "/tmp/gtn-api-upload"
 
 
 def sanitize_name(name: str) -> str:
-    """Replace unsafe characters for folder names."""
+    """Replace unsafe characters for folder names.
+    Plan for next updates is to delete this function and use quote (then no issues with folder names)
+    """
     return re.sub(r'[\\/:\*,?"<>|%.#!@$&\'\(\)\[\]{} ]', "-", str(name or ""))
 
 
@@ -64,7 +66,7 @@ def get_child_id(parent_id, name):
 
 
 def create_directory(parent_id, name):
-    """Create folder in Onedata (idempotent, preserving full original name)."""
+    """Create folder in Onedata."""
     if not name:
         print("⚠️ Skipping directory creation — empty name.")
         return None
@@ -94,7 +96,7 @@ def file_exists(parent_id, name):
 
 
 def upload_file(parent_id, local_path, dest_name):
-    """Upload one file into Onedata folder (preserving exact filename, robust for large files)."""
+    """Upload one file into Onedata folder."""
     if not os.path.exists(local_path):
         print(f"⚠️ Local file not found: {local_path}")
         return False
@@ -278,22 +280,11 @@ def main():
     print("🔍 Preparing main folder: GTN data")
     sandbox_id = ROOT_ID
 
-    #for root, _, files in os.walk("training-material"):
-    #    for file in files:
-    #        if file == "data-library.yaml":
-    #            yaml_path = os.path.join(root, file)
-    #            process_yaml(yaml_path, sandbox_id)
-
-    # ===========TESTING=================================================
-
-    test_dir = "training-material/topics/proteomics/tutorials/"
-    for root, _, files in os.walk(test_dir):
+    for root, _, files in os.walk("training-material"):
         for file in files:
             if file == "data-library.yaml":
                 yaml_path = os.path.join(root, file)
                 process_yaml(yaml_path, sandbox_id)
-
-    # ============================================================
 
     print("✅ Finished full upload run.")
 
