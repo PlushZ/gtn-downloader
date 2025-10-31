@@ -24,13 +24,6 @@ def sanitize_name(name: str) -> str:
     return re.sub(r'[\\/:\*,?"<>|%.#!@$&\'\(\)\[\]{} ]', '-', str(name or ""))
 
 
-def sanitize_filename(name: str) -> str:
-    """Replace only forbidden characters for filenames."""
-    name = str(name or "")
-    return re.sub(r'[^A-Za-z0-9._\-]', '-', name)
-
-
-
 def get_safe_filename_from_url(url):
     """Extract correct filename from URL, handling Zenodo /content links."""
     parsed = urlparse(url)
@@ -39,7 +32,7 @@ def get_safe_filename_from_url(url):
         filename = parts[-2]
     else:
         filename = parts[-1]
-    return filename
+    return unquote(filename)
 
 
 def ensure_tmp_clean():
@@ -167,7 +160,7 @@ def download_file(download_url, dest_path):
 def handle_file_upload(url, parent_id):
     """Download file to tmp, upload to Onedata, then clean up."""
     raw_name = get_safe_filename_from_url(url)
-    filename = sanitize_filename(raw_name)
+    filename = raw_name
 
     # Skip if file already exists
     if file_exists(parent_id, filename):
