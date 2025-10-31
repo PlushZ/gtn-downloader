@@ -2,7 +2,6 @@
 import os
 import re
 import yaml
-import time
 import ftplib
 import shutil
 import requests
@@ -18,11 +17,29 @@ TMP_DIR = "/tmp/gtn-api-upload"
 # ============================================================
 
 
-# ---------- Basic utilities ----------
+# ---------- Utility helpers ----------
 
 def sanitize_name(name: str) -> str:
-    """Replace unsafe characters with hyphens."""
+    """Replace unsafe characters for folder names."""
     return re.sub(r'[\\/:\*,?"<>|%.#!@$&\'\(\)\[\]{} ]', '-', str(name or ""))
+
+
+def sanitize_filename(name: str) -> str:
+    """Preserve dots in filenames, sanitize rest."""
+    base, ext = os.path.splitext(str(name or ""))
+    base = re.sub(r'[\\/:\*,?"<>|%.#!@$&\'\(\)\[\]{} ]', '-', base)
+    return base + ext
+
+
+def get_safe_filename_from_url(url):
+    """Extract correct filename from URL, handling Zenodo /content links."""
+    parsed = urlparse(url)
+    parts = parsed.path.split("/")
+    if parts[-1] == "content" and len(parts) > 1:
+        filename = parts[-2]
+    else:
+        filename = parts[-1]
+    return filename
 
 
 def ensure_tmp_clean():
@@ -145,6 +162,30 @@ def download_file(download_url, dest_path):
         return download_http(download_url, dest_path)
 
 
+# ---------- File upload handler ----------
+
+def handle_file_upload(url, parent_id):
+    """Download file to tmp, upload to Onedata, then clean up."""
+    raw_name = get_safe_filename_from_url(url)
+    filename = sanitize_filename(raw_name)
+
+    # Skip if file already exists
+    if file_exists(parent_id, filename):
+        print(f"⏩ Skipping (already exists): {filename}")
+        return
+
+    tmp_path = os.path.join(TMP_DIR, filename)
+    local_file = download_file(url, tmp_path)
+    if not local_file:
+        return
+
+    if upload_file(parent_id, local_file, filename):
+        os.remove(local_file)
+        print(f"🧹 Removed temp file: {local_file}")
+    else:
+        print(f"⚠️ Failed upload for {filename}")
+
+
 # ---------- YAML parsing and processing ----------
 
 def process_yaml(yaml_path, parent_id):
@@ -174,37 +215,27 @@ def process_yaml(yaml_path, parent_id):
             if not tut_id:
                 continue
 
-            for doi in tutorial.get("items", []):
-                doi_name = sanitize_name(doi.get("name", "DOI"))
+            items = tutorial.get("items", [])
+            has_direct_urls = any("url" in i for i in items)
+
+            # --- Case 1: direct URLs under tutorial ---
+            if has_direct_urls:
+                for item in items:
+                    url = item.get("url")
+                    if url:
+                        handle_file_upload(url, tut_id)
+                continue
+
+            # --- Case 2: nested DOI-level structure ---
+            for doi in items:
+                doi_name = sanitize_name(doi.get("name", ""))
                 doi_id = create_directory(tut_id, doi_name)
                 if not doi_id:
                     continue
-
                 for item in doi.get("items", []):
                     url = item.get("url")
-                    if not url:
-                        continue
-                    filename = sanitize_name(os.path.basename(urlparse(unquote(url)).path))
-                    if not filename:
-                        continue
-
-                    # --- Check existence before download ---
-                    if file_exists(doi_id, filename):
-                        print(f"⏩ Skipping (already exists): {filename}")
-                        continue
-
-                    # --- Download to tmp ---
-                    tmp_path = os.path.join(TMP_DIR, filename)
-                    local_file = download_file(url, tmp_path)
-                    if not local_file:
-                        continue
-
-                    # --- Upload to Onedata ---
-                    if upload_file(doi_id, local_file, filename):
-                        os.remove(local_file)
-                        print(f"🧹 Removed temp file: {local_file}")
-                    else:
-                        print(f"⚠️ Failed upload for {filename}")
+                    if url:
+                        handle_file_upload(url, doi_id)
 
 
 # ---------- MAIN ----------
@@ -217,7 +248,7 @@ def main():
     ensure_tmp_clean()
 
     print("🔍 Preparing main folder: GTN data")
-    sandbox_id = ROOT_ID  
+    sandbox_id = ROOT_ID  # use GTN data root
 
     for root, _, files in os.walk("training-material"):
         for file in files:
