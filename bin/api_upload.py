@@ -5,7 +5,7 @@ import yaml
 import ftplib
 import shutil
 import requests
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, quote
 from requests.exceptions import RequestException, Timeout, ConnectionError, HTTPError
 
 # ========================== CONFIG ==========================
@@ -63,16 +63,25 @@ def get_child_id(parent_id, name):
 
 
 def create_directory(parent_id, name):
-    """Create a folder in Onedata (idempotent)."""
-    url = f"https://{PROVIDER}/api/v3/oneprovider/data/{parent_id}/children?name={name}&type=DIR"
+    """Create folder in Onedata (idempotent, preserving full original name)."""
+    if not name:
+        print("⚠️ Skipping directory creation — empty name.")
+        return None
+
+    safe_name = quote(name, safe='')
+
+    url = f"https://{PROVIDER}/api/v3/oneprovider/data/{parent_id}/children?name={safe_name}&type=DIR"
     headers = {"X-Auth-Token": TOKEN}
     r = requests.post(url, headers=headers)
+
     if r.status_code == 201:
         print(f"📁 Created dir: {name}")
         return r.json()["fileId"]
-    elif r.status_code == 400 and "eexist" in r.text:
+
+    elif r.status_code == 400 and "eexist" in r.text.lower():
         print(f"ℹ️ Directory exists: {name}")
         return get_child_id(parent_id, name)
+
     else:
         print(f"❌ Failed to create dir '{name}': {r.status_code} - {r.text}")
         return None
@@ -84,23 +93,36 @@ def file_exists(parent_id, name):
 
 
 def upload_file(parent_id, local_path, dest_name):
-    """Upload one file into Onedata folder."""
-    url = f"https://{PROVIDER}/api/v3/oneprovider/data/{parent_id}/children?name={dest_name}"
-    headers = {"X-Auth-Token": TOKEN, "Content-Type": "application/octet-stream"}
-    try:
-        with open(local_path, "rb") as f:
-            r = requests.post(url, headers=headers, data=f, timeout=(10, 600))
-        if r.status_code == 201:
-            print(f"✅ Uploaded {dest_name} ({os.path.getsize(local_path)} bytes)")
-            return True
-        elif r.status_code == 400 and "eexist" in r.text:
-            print(f"ℹ️ File already exists on Onedata: {dest_name}")
-            return True
-        else:
-            print(f"❌ Upload failed ({r.status_code}): {r.text}")
-            return False
-    except Exception as e:
-        print(f"⚠️ Upload error for {dest_name}: {e}")
+    """Upload one file into Onedata folder (preserving exact filename)."""
+    if not os.path.exists(local_path):
+        print(f"⚠️ Local file not found: {local_path}")
+        return False
+
+    safe_name = quote(dest_name, safe='')
+
+    url = f"https://{PROVIDER}/api/v3/oneprovider/data/{parent_id}/children?name={safe_name}"
+    headers = {
+        "X-Auth-Token": TOKEN,
+        "Content-Type": "application/octet-stream"
+    }
+
+    with open(local_path, "rb") as f:
+        r = requests.post(url, headers=headers, data=f)
+
+    if r.status_code == 201:
+        print(f"✅ Uploaded {dest_name} ({os.path.getsize(local_path) / (1024**2):.2f} MB)")
+        # cleanup temp file to save space
+        os.remove(local_path)
+        return True
+
+    elif r.status_code == 400 and "eexist" in r.text.lower():
+        print(f"ℹ️ File already exists: {dest_name}")
+        os.remove(local_path)
+        return True
+
+    else:
+        print(f"❌ Upload failed for {dest_name}: {r.status_code} - {r.text}")
+        os.remove(local_path)
         return False
 
 
