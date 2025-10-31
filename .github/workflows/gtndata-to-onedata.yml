@@ -1,12 +1,10 @@
-name: GTN downloader
+# DEPRECATED WORKFLOW
+# This workflow used Oneclient FUSE for Onedata uploads.
+# It is kept temporarily for reference but is disabled.
+# Use `.github/workflows/gtn-to-onedata-restapi.yml` instead.
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: 30 23 * * 6 # minute hour month-day month week-day
 
 jobs:
   execute_script:
