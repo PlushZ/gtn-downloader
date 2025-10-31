@@ -1,103 +1,79 @@
 #!/usr/bin/env python3
 import os
 import requests
+import shutil
 import time
+from urllib.parse import urlparse, unquote, quote
 
 # --- CONFIG ---
 PROVIDER = "plg-cyfronet-01.datahub.egi.eu"
 SPACE_ID = "6de387b1f76aec7e8b925fd1ab92f032chacd1"
-ROOT_ID = "0000000000584FBD677569642373706163655F3664653338376231663736616563376538623932356664316162393266303332636861636431233664653338376231663736616563376538623932356664316162393266303332636861636431"
-TOKEN = os.environ.get("ONEPROVIDER_REST_ACCESS_TOKEN")
-TMP_DIR = "/tmp/gtn-large-test"
-URL = "https://zenodo.org/api/files/ed51565b-3e53-4636-8410-2adf4414a36e/GSM461179.fastqsanger"
+ROOT_ID   = "0000000000584FBD677569642373706163655F3664653338376231663736616563376538623932356664316162393266303332636861636431233664653338376231663736616563376538623932356664316162393266303332636861636431"
+TOKEN     = os.environ.get("ONEPROVIDER_REST_ACCESS_TOKEN")
+TMP_DIR   = "/tmp/onedata_upload_test"
 # ----------------
 
+def ensure_tmp_dir():
+    if os.path.exists(TMP_DIR):
+        shutil.rmtree(TMP_DIR, ignore_errors=True)
+    os.makedirs(TMP_DIR, exist_ok=True)
 
-def create_directory(parent_id, name):
-    """Create folder in Onedata (idempotent)."""
-    url = f"https://{PROVIDER}/api/v3/oneprovider/data/{parent_id}/children?name={name}&type=DIR"
-    headers = {"X-Auth-Token": TOKEN}
-    r = requests.post(url, headers=headers)
-    if r.status_code == 201:
-        print(f"📁 Created dir: {name}")
-        return r.json()["fileId"]
-    elif r.status_code == 400 and "eexist" in r.text:
-        print(f"ℹ️ Directory exists: {name}")
-        # get existing folder id
-        get_url = f"https://{PROVIDER}/api/v3/oneprovider/data/{parent_id}/children"
-        g = requests.get(get_url, headers=headers)
-        for c in g.json().get("children", []):
-            if c.get("name") == name:
-                return c.get("fileId")
-    else:
-        print(f"❌ Failed to create dir '{name}': {r.status_code} - {r.text}")
-        return None
-
-
-def download_large_file(url, local_path):
-    """Stream download with progress output."""
-    os.makedirs(os.path.dirname(local_path), exist_ok=True)
-    print(f"⬇️ Downloading: {url}")
-    with requests.get(url, stream=True, timeout=(10, 120)) as r:
+def download_file(url, dest_path, stream=True, timeout=(10,3600)):
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+    print(f"➡️ Downloading: {url}")
+    with requests.get(url, stream=stream, timeout=timeout) as r:
         r.raise_for_status()
-        total = int(r.headers.get("Content-Length", 0))
-        downloaded = 0
-        last_mb = 0
-        start = time.time()
-        with open(local_path, "wb") as f:
-            for chunk in r.iter_content(chunk_size=4 * 1024 * 1024):  # 4 MB
+        with open(dest_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=512*1024):
                 if chunk:
                     f.write(chunk)
-                    downloaded += len(chunk)
-                    if downloaded - last_mb >= 100 * 1024 * 1024:
-                        print(f"📥 {downloaded / (1024**2):.1f} MB of {total / (1024**2):.1f} MB")
-                        last_mb = downloaded
-        print(f"✅ Download complete ({downloaded / (1024**2):.1f} MB) in {time.time()-start:.1f}s")
-    return local_path
-
+    print(f"✅ Downloaded: {dest_path} ({os.path.getsize(dest_path)/(1024**2):.1f} MB)")
+    return dest_path
 
 def upload_to_onedata(parent_id, local_path):
-    """Upload a large file to Onedata (streamed POST)."""
-    dest_name = os.path.basename(local_path)
-    url = f"https://{PROVIDER}/api/v3/oneprovider/data/{parent_id}/children?name={dest_name}"
+    filename = os.path.basename(local_path)
+    safe_name = quote(filename, safe='')
+    url = f"https://{PROVIDER}/api/v3/oneprovider/data/{parent_id}/children?name={safe_name}"
     headers = {"X-Auth-Token": TOKEN, "Content-Type": "application/octet-stream"}
-
-    print(f"📤 Uploading {dest_name} to Onedata...")
-    start = time.time()
+    print(f"➡️ Uploading: {local_path} → {filename}")
     with open(local_path, "rb") as f:
-        r = requests.post(url, headers=headers, data=f)
-    dur = time.time() - start
-
+        r = requests.post(url, headers=headers, data=f, timeout=(15,3600))
     if r.status_code == 201:
-        print(f"✅ Upload successful ({os.path.getsize(local_path)/(1024**2):.1f} MB, {dur:.1f}s)")
+        print(f"✅ Upload successful: {filename}")
+        return True
     else:
-        print(f"❌ Upload failed: {r.status_code} - {r.text}")
-
+        print(f"❌ Upload failed ({r.status_code}): {r.text}")
+        return False
 
 def main():
     if not TOKEN:
-        print("❌ Missing ONEPROVIDER_REST_ACCESS_TOKEN")
+        print("❌ Missing ONEPROVIDER_REST_ACCESS_TOKEN environment variable")
         return
 
-    os.makedirs(TMP_DIR, exist_ok=True)
+    ensure_tmp_dir()
 
-    print("🔍 Preparing sandbox folder: test-ci-folder")
-    sandbox_id = create_directory(ROOT_ID, "test-ci-folder")
-    if not sandbox_id:
-        print("❌ Cannot access test-ci-folder.")
-        return
+    # Files to test
+    files = [
+        ("https://zenodo.org/record/14365542/files/RNA-Seq_Reads_1.fastqsanger.gz",   "RNA-Seq_Reads_1.fastqsanger.gz"),
+        ("https://zenodo.org/record/14377365/files/iedb_novel_peptide_x_hla_table-strong.tabular", "iedb_novel_peptide_x_hla_table-strong.tabular")
+    ]
 
-    filename = os.path.basename(URL)
-    local_path = os.path.join(TMP_DIR, filename)
+    for url, fname in files:
+        tmp_path = os.path.join(TMP_DIR, fname)
+        try:
+            download_file(url, tmp_path)
+        except Exception as e:
+            print(f"⚠️ Download error for {fname}: {e}")
+            continue
 
-    try:
-        download_large_file(URL, local_path)
-        upload_to_onedata(sandbox_id, local_path)
-    except Exception as e:
-        print(f"⚠️ Error: {e}")
+        success = upload_to_onedata(ROOT_ID, tmp_path)
+        if not success:
+            print(f"⚠️ Failed to upload {fname}")
+        # Clean up local file after upload attempt
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
+    print("✅ Test script finished.")
 
 if __name__ == "__main__":
-    start = time.time()
     main()
-    print(f"⏱️ Total run time: {time.time() - start:.1f}s")
