@@ -6,13 +6,16 @@ on:
     branches:
       - main
   schedule:
-    - cron: 30 23 * * 6 # minute hour month-day month week-day
+    - cron: 30 23 * * 6
 
 jobs:
   api-upload-test:
     runs-on: ubuntu-latest
     env:
       ONEPROVIDER_REST_ACCESS_TOKEN: ${{ secrets.ONEPROVIDER_REST_ACCESS_TOKEN }}
+      ONECLIENT_PROVIDER_HOST: ${{ secrets.ONECLIENT_PROVIDER_HOST }}
+      ONEPROVIDER_ROOT_ID: ${{ secrets.ONEPROVIDER_ROOT_ID }}
+      ONEPROVIDER_SPACE_ID: ${{ secrets.ONEPROVIDER_SPACE_ID }}
 
     steps:
       - name: Checkout repository
