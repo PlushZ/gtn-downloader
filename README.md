@@ -10,7 +10,7 @@ The GTN data provided by the OneData store is accessible via:
 * via the OneData client and an read-only accessToken (see below)
 * or via the OneData file-source plugin for example via the [European Galaxy server](https://usegalaxy.eu/)
 
-To access the GTN vie OneData or include it in your Galaxy server use the following public read-only accessToken and configuration.
+To access the GTN via OneData or include it in your Galaxy server use the following public read-only accessToken and configuration.
 ```yaml
 - type: onedata
   id: gtn_public_onedata
@@ -25,16 +25,12 @@ To access the GTN vie OneData or include it in your Galaxy server use the follow
 
 1. **Triggering**: The action is triggered on a schedule (first day of each month at 23:30) 
 
-2. **Environment Setup**: It runs on a Ubuntu environment and sets up necessary environment variables like `ONECLIENT_ACCESS_TOKEN` and `ONECLIENT_PROVIDER_HOST`, which are required for accessing the remote storage via Oneclient. These variables are retrieved from repository secrets.
+2. **Environment Setup**: It runs on a Ubuntu environment and sets up necessary environment variables like `ONEPROVIDER_REST_ACCESS_TOKEN`, `ONECLIENT_PROVIDER_HOST`, `ONEPROVIDER_ROOT_ID`, and `ONEPROVIDER_SPACE_ID`, which are required for accessing the remote storage via Onedata REST API. These variables are retrieved from repository secrets.
 
 3. **Workflow Steps**:
    - **Checkout Repository**: It checks out the current repository to access its contents.
-   - **Clone GTN Repository**: It clones the GTN repository (`galaxyproject/training-material`) into the workspace for accessing the training materials.
+   - **Clone training-material repo**: It clones the GTN repository (`galaxyproject/training-material`) into the workspace for accessing the training materials.
    - **Set up Python**: Configures the Python environment.
    - **Install Dependencies**: Installs the Python dependencies listed in `requirements.txt`.
-   - **Create Mount Directory**: Creates a directory (`$HOME/remote_storage_mount`) for mounting the remote storage.
-   - **Install Oneclient**: Installs Oneclient using a bash script fetched from a specified URL.
-   - **Set up Environment Variables**: Sets up environment variables required for Oneclient to access the remote storage.
-   - **Mount Remote Storage**: Mounts the remote storage location using Oneclient.
-   - **Run GTN-downloader Script**: Executes the Python script `bin/data-library-download.py`, which downloads GTN data from the cloned repository (`$GITHUB_WORKSPACE/training-material`) and saves it to the mounted remote storage location (`$HOME/remote_storage_mount/GTN data`).
-   - **Unmount Remote Storage**: Unmounts the remote storage after the download process is complete.
+   - **Set Environment Variables**: Loads Onedata REST API credentials from GitHub Secrets.
+   - **Run API upload**: Executes the Python script `bin/api_upload.py`, which parses data-library.yaml files from the GTN repository (`$GITHUB_WORKSPACE/training-material`), downloads the referenced datasets (HTTP/FTP), and uploads them to the Onedata space using the Onedata REST API over HTTPS.
