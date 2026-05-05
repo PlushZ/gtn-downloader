@@ -33,7 +33,7 @@ def sanitize_name(name: str) -> str:
 def get_safe_filename_from_url(url):
     """Extract correct filename from URL, handling Zenodo /content links."""
     parsed = urlparse(url)
-    parts = parsed.path.split("/")
+    parts = [part for part in parsed.path.split("/") if part]
     if parts[-1] == "content" and len(parts) > 1:
         filename = parts[-2]
     else:
@@ -149,7 +149,7 @@ def download_http(download_url, dest_path):
     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
     print(f"➡️ HTTP download: {download_url}")
     for attempt in range(1, HTTP_DOWNLOAD_RETRIES + 1):
-        if os.path.exists(dest_path):
+        if os.path.isfile(dest_path):
             os.remove(dest_path)
 
         try:
